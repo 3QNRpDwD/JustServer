@@ -30,17 +30,8 @@ class StructStone:
 
     header: StructStoneHeader
     payload: StructStonePayload
-    stone: bytes = field(init=False, default=None)
-
-    def __post_init__(self):
-
-        if self.header is not None:
-            self.stone = self.header
-        elif self.payload is not None:
-            self.stone = self.payload
-        else:
-            self.stone = self.header + self.payload
-
+    stone: bytes
+    
 @dataclass
 class StoneChain: 
 
@@ -67,7 +58,6 @@ class ConstructStoneHeader:
     def from_(SSP: StructStonePayload ) -> StructStoneHeader:
         
         StoneSize = len(SSP.sysinfo) + len(SSP.command_input) + len(SSP.command_output) + len(SSP.stone_chain)
-        print(StoneSize)
         StoneStatus = struct.pack("I", 0)
         
         if ( SSP.sysinfo and not SSP.command_input and not SSP.command_output) :
@@ -87,8 +77,9 @@ class ConstructStone:
     def from_(SSH: StructStoneHeader, SSP: StructStonePayload) -> StructStone:
         header = SSH.StoneStatus + SSH.StoneType + SSH.StoneSize
         payload = SSP.sysinfo + SSP.command_input + SSP.command_output + SSP.stone_chain
+        stone = header + payload
         
-        return  StructStone(header, payload)
+        return  StructStone(header, payload, stone)
 
 class protocolRules:
     def __init__(self) -> None:

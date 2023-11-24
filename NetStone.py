@@ -42,15 +42,15 @@ class StoneTransferProtocol:
         Packet = self.client.recv( buffer_size )
 
         if buffer_size != 12:
-            return StructStone( None, Packet )
+            return StructStone( None, Packet ,None)
         
         Header = StructStoneHeader( Packet[0:4], Packet[4:8], Packet[8:12] )
         Payload = self.ParsingPacket( self.ReceiveStone( struct.unpack('I', Header.StoneSize )[0] ) )
 
         if Header.StoneSize:
-            return StructStone( Header, Payload )
+            return StructStone( Header, Payload ,None)
         
-        return StructStone( Header, None )
+        return StructStone( Header, None ,None)
         
         
             
