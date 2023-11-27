@@ -54,20 +54,26 @@ class ConstructStonePayload:
         return StructStonePayload(sysinfo, cmd_input, cmd_output, stone_chain)
 
 class ConstructStoneHeader:
-    
-    def from_(SSP: StructStonePayload ) -> StructStoneHeader:
-        
-        StoneSize = len(SSP.sysinfo) + len(SSP.command_input) + len(SSP.command_output) + len(SSP.stone_chain)
+
+    def from_(SSP: StructStonePayload) -> StructStoneHeader:
+        sysinfo_len = len(SSP.sysinfo)
+        cmd_input_len = len(SSP.command_input)
+        cmd_output_len = len(SSP.command_output)
+
+        StoneSize = sysinfo_len + cmd_input_len + cmd_output_len + 8
         StoneStatus = struct.pack("I", 0)
-        
-        if ( SSP.sysinfo and not SSP.command_input and not SSP.command_output) :
+
+        if sysinfo_len and not cmd_input_len and not cmd_output_len: # Connection
+            StoneType = struct.pack("I", 0)
+        elif sysinfo_len and not cmd_input_len and cmd_output_len:   # Response
             StoneType = struct.pack("I", 1)
-        elif SSP.command_output:
+        elif sysinfo_len and cmd_input_len and not cmd_output_len:   # Request
             StoneType = struct.pack("I", 2)
         else:
-            StoneType = struct.pack("I", 3)
-        
-        return StructStoneHeader(StoneStatus, StoneType, struct.pack("I", StoneSize ))
+            StoneType = struct.pack("I", 3)                          # HealthCheck
+
+        return StructStoneHeader(StoneStatus, StoneType, struct.pack("I", StoneSize))
+
 
     def __init__(self, packed_data):
         self.packed_data = packed_data
@@ -76,7 +82,7 @@ class ConstructStone:
     
     def from_(SSH: StructStoneHeader, SSP: StructStonePayload) -> StructStone:
         header = SSH.StoneStatus + SSH.StoneType + SSH.StoneSize
-        payload = SSP.sysinfo + SSP.command_input + SSP.command_output + SSP.stone_chain
+        payload = f'{SSP.sysinfo}..{SSP.command_input}..{SSP.command_output}..{SSP.stone_chain}..'.encode()
         stone = header + payload
         
         return  StructStone(header, payload, stone)

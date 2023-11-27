@@ -3,39 +3,59 @@ from StructureStone import *
 
 class StoneTransferProtocol:
 
-    def __init__( self , addr  : str,  port :int, listen : int ):
+    def __init__( self  ):
         self.s = socket.socket()
-        self.soket = self.SetupConnection( addr, port, listen )
-        self.client = self.soket[0]
+        self.socket = None
+        self.client = None
 
-    def SetupConnection( self, addr : str, port :int, listen : int ):
+    def SetupConnection( self , addr : str, port :int, listen : int) :
+        
+        if self.socket == None:
+        
+            self.s.bind( ( addr, port ) )
+            self.s.listen( listen )
+            
+            print(f"""
+            =========================================
+                C&C Server Successfully Started!
+            =========================================
 
-        self.s.bind( ( addr, port ) )
-        self.s.listen( listen )
+            Server Status: Active
+            Version: [ 0.0.1 ]
+            Address: [ {addr} ]
+            Port: [ {port} ]
 
-        return self.s.accept()
+            The server is up and running smoothly. What would you like to do?
+            Type 'help' for assistance.
+            Type 'exit' to shut down the server.
+
+            =========================================""")
+            
+        self.socket = self.s.accept()
+        self.client = self.socket[0]
+
+        return self.socket
 
     def identifyPacketType( self, Packet: StructStoneHeader ) -> str:
         pass
 
 
-    def ParsingPacket( self, Packet: StructStone ) -> StructRawStonePayload:
-        Packet = Packet.payload.decode().split("..")
-        return StructRawStonePayload(*Packet)
+    def ParsingPacket(self, Packet: StructStone) -> StructRawStonePayload:
+        packet_data = Packet.payload.split(b"..")
+        
+        while len(packet_data) < 4:
+            packet_data.append(b"")  # 빈 문자열이나 다른 기본값을 추가하거나 필요에 따라 수정하세요.
+
+        return StructStonePayload(*packet_data)
 
     def SendStone( self, Stone ):
 
         try:
             self.client.send( Stone )
-            return self.ReceiveStone()
         
         except Exception as e:
 
             return f'failed... Reason: { e }'
-        
-        finally:
-
-            self.s.close()
 
     def ReceiveStone( self, buffer_size: int = 12 ) -> StructStone:
 
