@@ -16,6 +16,7 @@ class StoneTransferProtocol:
             self.s.listen( listen )
             
             print(f"""
+            \r\n
             =========================================
                 C&C Server Successfully Started!
             =========================================
@@ -29,12 +30,15 @@ class StoneTransferProtocol:
             Type 'help' for assistance.
             Type 'exit' to shut down the server.
 
-            =========================================""")
+            =========================================\r\n\r\n""")
             
         self.socket = self.s.accept()
         self.client = self.socket[0]
 
         return self.socket
+    
+    def Disconnect( self ):
+        self.client.close 
 
     def identifyPacketType( self, Packet: StructStoneHeader ) -> str:
         pass

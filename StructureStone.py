@@ -70,7 +70,7 @@ class ConstructStoneHeader:
         elif sysinfo_len and cmd_input_len and not cmd_output_len:   # Request
             StoneType = struct.pack("I", 2)
         else:
-            StoneType = struct.pack("I", 3)                          # HealthCheck
+            StoneType = struct.pack("I", 4)                          # HealthCheck
 
         return StructStoneHeader(StoneStatus, StoneType, struct.pack("I", StoneSize))
 
