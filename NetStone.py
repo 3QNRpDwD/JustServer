@@ -30,7 +30,8 @@ class StoneTransferProtocol:
             Type 'help' for assistance.
             Type 'exit' to shut down the server.
 
-            =========================================\r\n\r\n""")
+            =========================================
+            \r\n\r\n""")
             
         self.socket = self.s.accept()
         self.client = self.socket[0]
@@ -45,12 +46,17 @@ class StoneTransferProtocol:
 
 
     def ParsingPacket(self, Packet: StructStone) -> StructRawStonePayload:
+        
         packet_data = Packet.payload.split(b"..")
         
         while len(packet_data) < 4:
-            packet_data.append(b"")  # 빈 문자열이나 다른 기본값을 추가하거나 필요에 따라 수정하세요.
-
-        return StructStonePayload(*packet_data)
+            packet_data.append(b"")  # 빈 문자열이나 다른 기본값을 추가하거나 필요에 따라 수정하세요.\
+            
+        return StructStonePayload( sysinfo= packet_data[0],
+                                   command_input= packet_data[1], 
+                                   command_output= packet_data[2],
+                                   stone_chain= packet_data[3]
+                                   )
 
     def SendStone( self, Stone ):
 

@@ -8,17 +8,17 @@ def run():
 
     while True:
         req = STP.ReceiveStone()
-        print(f"{req.payload}\r\n")
 
-        if req.header.StoneType == struct.pack("I", 4):
-            print("Client has disconnected.")
-            break
+        if req.header.StoneType == struct.pack("I", 1):
+            print(req.payload.command_output.decode("cp949"))
 
         stone = input("Send command: ")
 
         if stone == "close":
             STP.SendStone(generator().stone)
-            break
+            if STP.ReceiveStone().header.StoneType == struct.pack("I", 4):
+                print("Client has disconnected.")
+                break
 
         res = generator("sys_info",stone)
 
