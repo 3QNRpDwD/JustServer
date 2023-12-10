@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 import struct
 
 @dataclass
@@ -47,8 +46,8 @@ class ConstructStonePayload:
 
         sysinfo     = SRSP.sysinfo        .encode()
         cmd_input   = SRSP.command_input  .encode()
-        cmd_output  = SRSP.response .encode()
-        file = SRSP.file    .encode()
+        cmd_output  = SRSP.response       .encode()
+        file = SRSP.file                  .encode()
         
         return StructStonePayload(sysinfo, cmd_input, cmd_output, file)
 
@@ -72,37 +71,80 @@ class ConstructStoneHeader:
             StoneType = struct.pack("I", 5)                          # Disconnect
 
         return StructStoneHeader(StoneStatus, StoneType, struct.pack("I", StoneSize))
-    
-    def upload(SSP: StructStonePayload) -> StructStoneHeader:
-        StoneSize = len(SSP.sysinfo) + len(SSP.file)
-        return StructStoneHeader(struct.pack("I", 0), struct.pack("I", 7), struct.pack("I", StoneSize))
-    
-    def Download(SSP: StructStonePayload) -> StructStoneHeader:
-        StoneSize = len(SSP.sysinfo) + len(SSP.file)
-        return StructStoneHeader(struct.pack("I", 0), struct.pack("I", 8), struct.pack("I", StoneSize))
-
 
     def __init__(self, packed_data):
         self.packed_data = packed_data
 
 class ConstructStone:
     
-    def from_(SSH: StructStoneHeader, SSP: StructStonePayload) -> StructStone:
+    def from_(self, SSH: StructStoneHeader, SSP: StructStonePayload) -> StructStone:
         header = SSH.StoneStatus + SSH.StoneType + SSH.StoneSize
-        payload = f'{SSP.sysinfo}<>{SSP.command_input}<>{SSP.response}<>{SSP.file}<>'.encode()
+        payload = SSP.sysinfo+b'<>'+SSP.command_input+b'<>'+SSP.response+b'<>'+SSP.file+b'<>'
         stone = header + payload
         
         return  StructStone(header, payload, stone)
 
-class protocolRules:
-    def __init__(self) -> None:
-        self.Rules = [
-                        { 0 : "sysinfo", 1 : "command_input", 2 : "response", 3 : "file" },
-                        { 0 : "sysinfo", 1 : "command_input", 2 : "response", 3 : "file" }
-                    ]
+    def Upload(self, file: bytes) -> StructStoneHeader:
+        SSP = StructStonePayload("sysinfo".encode(), bytearray(),bytearray(), file)
+        return self.from_(StructStoneHeader(
+                            struct.pack("I", 0),
+                            struct.pack("I", 7),
+                            struct.pack("I", len(SSP.sysinfo) + len(SSP.file) + 8)
+                            ),
+                          SSP
+                        )
+    
+    def Download(self, file_path: str) -> StructStoneHeader:
+        SSP = StructStonePayload("sysinfo".encode(), bytearray(), bytearray(), file_path.encode())
+        return self.from_(StructStoneHeader(
+                            struct.pack("I", 0),
+                            struct.pack("I", 8),
+                            struct.pack("I", len(SSP.sysinfo) + len(SSP.file) + 8)
+                            ),
+                          SSP
+                        )
 
-    def from_json():
-        pass
+    def Command(self, cmd: str) -> StructStoneHeader:
+        SSP = StructStonePayload("sysinfo".encode(), cmd.encode(), bytearray(), bytearray())
+        return self.from_(StructStoneHeader(
+                            struct.pack("I", 0),
+                            struct.pack("I", 2),
+                            struct.pack("I", len(SSP.sysinfo) + len(SSP.command_input) + 8)
+                            ),
+                          SSP
+                        )
+    
+    def Disconnect(self) -> StructStoneHeader:
+        return self.from_(StructStoneHeader(
+                                struct.pack("I", 0),
+                                struct.pack("I", 5),
+                                struct.pack("I", 0)
+                                ),
+                          StructStonePayload(bytearray(), bytearray(), bytearray(), bytearray())
+                        )
 
-    def to_json():
-        pass
+@dataclass
+class Protocol:
+    Connection :bytes = field(init=False, default=None)
+    Handshake  :bytes = field(init=False, default=None)
+    HealthCheck:bytes = field(init=False, default=None)
+    Disconnect :bytes = field(init=False, default=None)
+
+    ExecuteCmd :bytes = field(init=False, default=None)
+    Upload     :bytes = field(init=False, default=None)
+    Download   :bytes = field(init=False, default=None)
+    Response   :bytes = field(init=False, default=None)
+    Unknown    :None = field(init=False, default=None)
+    
+    def __post_init__(self):
+        self.Connection  = struct.pack("I", 0)
+        self.Handshake   = struct.pack("I", 1)
+        self.HealthCheck = struct.pack("I", 4)
+        self.Disconnect  = struct.pack("I", 5)
+
+        self.ExecuteCmd  = struct.pack("I", 2)
+        self.Upload      = struct.pack("I", 7)
+        self.Download    = struct.pack("I", 8)
+        self.Response    = struct.pack("I", 3)
+        
+        self.Unknown     = None
