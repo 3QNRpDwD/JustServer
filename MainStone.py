@@ -42,7 +42,6 @@ class Server:
         self.__Command_thread.start()
         self.__Server_thread.join()
         self.__Command_thread.join()
-        exit()
         
     def __run_service_handle(self):
         asyncio.run(self.__handle_Service())
