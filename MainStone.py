@@ -14,6 +14,11 @@ class Server:
         self.Sessions = set([])
         self.Session = None
         self.response = None
+        self.command_list: dict = {
+            "sessions" : self.__display_sessions, 
+            "session"  : self.__display_session,
+            "status"   : self.__display_server_status,
+            }
         print(f"""
             \r\n
             =========================================
@@ -60,22 +65,21 @@ class Server:
         while True:
             cmd = input("Server: ")
             
-            if cmd == "sessions":
-                self.__display_sessions()
+            for command, function in self.command_list.items():
+                if cmd == command:
+                    print( function() )
                 
-            elif cmd == "session":
-                self.__display_session()
-                    
-            elif cmd == "status":
-                print(f"\nServer activation status: {self.server.is_serving()}")
+            if cmd.startswith("set"):
+                print( self.__set_command(cmd) )
                 
-            elif cmd.startswith("set"):
-                self.__set_command(cmd)
-                    
-            self.__client_command(cmd)
+            elif self.Session:
+                await self.__client_command(cmd)
                 
-            if await self.__shutdown_command(self, cmd):
+            elif await self.__shutdown_command( cmd ):
                 break
+            # else:
+            #     print(f"\nCommand {cmd} not found\n")
+            
         exit()
         
         
@@ -83,60 +87,58 @@ class Server:
         if cmd == "close":
             await self.__STP.Disconnect(self.Session)
             self.Sessions.remove(self.Session)
-            print(f"\nDisconnected from session: {self.Session.SessionID}")
+            msg =  f"\nDisconnected from session: {self.Session.SessionID}\n"
             self.Session = None
+            print(msg)
             
         elif cmd == "exit":
-            
-            print(f"\nSession: {self.Session.SessionID} is Deselect.")
+            print("\nSession: {self.Session.SessionID} is Deselect.\n")
             self.Session = None
             
         elif cmd.startswith("/"):
-        
             await self.__STP.SendStone(self.Session, self.struct.Command(cmd.replace("/", "")))
+            print("\nUnimplemented command\n")
         
         
     def __display_sessions(self):
-        print("\n====== [ Index ] ====== [ Address ] ========== [ ID ] =========")
+        
+        display_session = "\n====== [ Index ] ====== [ Address ] ========== [ ID ] ========="
         count = 0
         for Session in self.Sessions:
-            print(f"|      index : {count}       [ {Session.Address[0]} ]    [ {Session.SessionID} ]  |")
+            display_session += f"\n|      index : {count}       [ {Session.Address[0]} ]    [ {Session.SessionID} ]  |"
             count+=1
-        print("==========================[ end ]==============================")
+        display_session += "\n==========================[ end ]==============================\n"
+        return display_session
         
         
     def __display_session(self):
         if self.Session == None:
-            print(f"\nNo session has been selected.\nUse the 'set' command to select a session")
+            return f"\nNo session has been selected.\nUse the 'set' command to select a session\n"
             
-        else:
-            print(f"\nThe currently selected session is {self.Session.SessionID}.")
+        return f"\nThe currently selected session is {self.Session.SessionID}.\n"
+    
+    def __display_server_status(self):
+        return f"\nServer activation status: {self.server.is_serving()}\n"
         
         
     def __set_command(self, cmd):
-        cmd = cmd.replace("set", "").replace(" ", "")
-        if cmd:
+        session_id = cmd.replace("set", "").replace(" ", "")
+        if not session_id:
+            return "\nSession not found.\n"
             
-            session_id = cmd
-            found_session = next((session for session in self.Sessions if session.SessionID == session_id), None)
+        found_session = next((session for session in self.Sessions if session.SessionID == session_id), None)
+        
+        if not found_session:
+            return "\nThe 'set' command must include the 'SessionID'\n"
             
-            if found_session:
-                
-                self.Session = found_session
-                print(f"\n{session_id } Session has been selected.")
-                
-            else:
-                
-                print("\nSession not found.")
-        else:
-            
-            print("\nThe 'set' command must include the 'SessionID'")
+        self.Session = found_session
+        return f"\n{session_id} Session has been selected.\n"
 
 
     async def __shutdown_command(self, cmd):
         if (len(self.Sessions) == 0 and cmd == "shutdown"):
             
-            print("\nThe server has shut down.")
+            print("\nThe server has shut down.\n")
             await self.server.wait_closed()
             
             return True
@@ -145,7 +147,7 @@ class Server:
             
             for session in self.Sessions:
                 await self.__STP.Disconnect(session)
-            print("\nThe server has shut down.")
+            print("\nThe server has shut down.\n")
             
             return True
         
