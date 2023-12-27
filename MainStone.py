@@ -1,7 +1,7 @@
 from StructureStone import *
 from dataclasses import dataclass, field
 from NetStone import StoneTransferProtocol
-import asyncio, threading, secrets
+import asyncio, threading, secrets, socket
 
 
 class Server:
@@ -13,6 +13,8 @@ class Server:
         self.__address = address
         self.Sessions = set([])
         self.Session = None
+        self.regular_sockets = {}
+        self.packets = {}
         self.response = None
         self.command_list: dict = {
             "sessions" : self.__display_sessions, 
@@ -44,21 +46,28 @@ class Server:
         self.__Command_thread.join()
         
     def __run_service_handle(self):
-        asyncio.run(self.__handle_Service())
+        # asyncio.run(self.__handle_Service())
+        pass
         
     def __run_command_handler(self):
-        asyncio.run(self.__handle_command())
+        # asyncio.run(self.__handle_command())
+        pass
             
     async def __handle_Service(self):
-        self.server = await asyncio.start_server( self.__handle_client, *self.__address )   
+        # self.server = await asyncio.start_server( self.__handle_client, *self.__address )   
         
-        async with self.server:
-            await self.server.serve_forever()
+        # async with self.server:
+        #     await self.server.serve_forever()
+        pass
         
     async def __handle_client(self,reader, writer):
-        packet = await self.__STP.ReceiveStone(reader)
-        self.Sessions.add( Session( writer.get_extra_info('peername'), reader, writer, packet ) )
-            
+        # packet = await self.__STP.AsyncReceiveStone(reader)
+
+        if packet.header.StoneType == struct.pack('I', 0 ):
+            session = Session( writer.get_extra_info('peername'), reader, writer )
+            self.regular_sockets[session.SessionID] = self.__STP.regular_socket(writer.get_extra_info('socket'))
+            self.packets[session.SessionID] = packet
+            self.Sessions.add( session )
         
     async def __handle_command(self):
         while True:
@@ -86,21 +95,21 @@ class Server:
         if cmd == "close":
             await self.__STP.Disconnect(self.Session)
             self.Sessions.remove(self.Session)
-            msg =  f"\nDisconnected from session: {self.Session.SessionID}\n"
+            print(f"\nDisconnected from session: {self.Session.SessionID}\n")
             self.Session = None
-            print(msg)
             
         elif cmd == "exit":
             print("\nSession: {self.Session.SessionID} is Deselect.\n")
             self.Session = None
             
         elif cmd.startswith("/"):
+            sessionid = self.Session.SessionID
             await self.__STP.SendStone(self.Session, self.struct.Command(cmd.replace("/", "")))
-            print("\nUnimplemented command\n")
+            self.packets[sessionid] = self.__STP.ReceiveStone(self.regular_sockets[sessionid])
+            print(self.packets[sessionid].payload.decode("cp949"))
         
         
     def __display_sessions(self):
-        
         display_session = "\n====== [ Index ] ====== [ Address ] ========== [ ID ] ========="
         count = 0
         for Session in self.Sessions:
@@ -123,12 +132,12 @@ class Server:
     def __set_command(self, cmd):
         session_id = cmd.replace("set", "").replace(" ", "")
         if not session_id:
-            return "\nSession not found.\n"
+            return "\nThe 'set' command must include the 'SessionID'\n"
             
         found_session = next((session for session in self.Sessions if session.SessionID == session_id), None)
         
         if not found_session:
-            return "\nThe 'set' command must include the 'SessionID'\n"
+            return "\nSession not found.\n"
             
         self.Session = found_session
         return f"\n{session_id} Session has been selected.\n"
@@ -160,7 +169,6 @@ class Session:
     Address: tuple
     reader: None
     writer: None
-    pecket: bytes
 
     def __post_init__(self):
         self.SessionID = SessionID(8).Token

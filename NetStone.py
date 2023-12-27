@@ -1,8 +1,12 @@
 import socket
-import asyncio
 from StructureStone import *
 
 class StoneTransferProtocol:
+    def __init__(self) -> None:
+        self.s = socket.socket()
+        self.socket = None
+        self.client = None
+    
     def SetupConnection( self , addr : str, port :int, listen : int) :
         
         if self.socket == None:
@@ -39,15 +43,32 @@ class StoneTransferProtocol:
         
         finally:
             return Stone
+    
+    def ReceiveStone( self, socket, buffer_size: int = 12 ) -> StructStone:
+        Packet = socket.recv( buffer_size )
 
-    async def ReceiveStone( self, reader, buffer_size: int = 12 ) -> StructStone:
+        if buffer_size != 12:
+            return StructStone( None, Packet ,None)
+        
+        Header = StructStoneHeader( Packet[0:4], Packet[4:8], Packet[8:12] )
+        Payload = self.ParsingPacket( self.ReceiveStone(socket, struct.unpack('I', Header.StoneSize )[0] ) )
+
+        if Header.StoneSize:
+            return StructStone( Header, Payload ,None)
+        
+        return StructStone( Header, None ,None)
+    
+    def regular_socket(self, async_socket):
+        return socket.fromfd(async_socket.fileno(), async_socket.family, async_socket.type)
+    
+    async def AsyncReceiveStone( self, reader, buffer_size: int = 12 ) -> StructStone:
         Packet = await reader.read(buffer_size)
 
         if buffer_size != 12:
             return StructStone( None, Packet ,None)
         
         Header = StructStoneHeader( Packet[0:4], Packet[4:8], Packet[8:12] )
-        Payload = self.ParsingPacket( await self.ReceiveStone(reader, struct.unpack('I', Header.StoneSize )[0] ) )
+        Payload = self.ParsingPacket( await self.AsyncReceiveStone(reader, struct.unpack('I', Header.StoneSize )[0] ) )
 
         if Header.StoneSize:
             return StructStone( Header, Payload ,None)
