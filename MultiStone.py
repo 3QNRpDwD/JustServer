@@ -10,7 +10,7 @@ class THREAD_PRESET(threading.Thread):
         self.result = None
 
     def run(self):
-        self.result = self.target(*self.args)
+        self.result = self.target(self.args)
 
 # class Thread_DataManager:
 #     def __init__(self) -> None:

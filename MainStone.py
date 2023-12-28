@@ -1,18 +1,21 @@
 from StructureStone import *
 from dataclasses import dataclass, field
 from NetStone import StoneTransferProtocol
-import asyncio, threading, secrets, socket
+from MultiStone import *
+import asyncio, secrets, socket
 
 
 class Server:
     def __init__(self, *address: list) -> None:
         self.__STP = StoneTransferProtocol()
+        self.thread = Thread()
         self.struct = ConstructStone()
         self.__Server_thread = threading.Thread(target=self.__run_service_handle, daemon=True)
-        self.__Command_thread = threading.Thread(target=self.__run_command_handler, daemon=True)
+        self.__Command_thread = threading.Thread(target=self.__handle_command, daemon=True)
         self.__address = address
         self.Sessions = set([])
         self.Session = None
+        self.thread_q = []
         self.regular_sockets = {}
         self.packets = {}
         self.response = None
@@ -28,13 +31,13 @@ class Server:
             =========================================
 
             Server Status: Active
-            Version: [ 0.0.1 ]
+            Version: [ 0.0.2 ]
             Address: [ {self.__address[0]} ]
             Port: [ {self.__address[1]} ]
 
             The server is up and running smoothly. What would you like to do?
             Type 'help' for assistance.
-            Type 'exit' to shut down the server.
+            Type 'shutdown' to shut down the server.
 
             =========================================
             \r\n\r\n""")
@@ -47,75 +50,105 @@ class Server:
         
     def __run_service_handle(self):
         # asyncio.run(self.__handle_Service())
+        while True:
+            self.__handle_Service()
+        
         pass
         
     def __run_command_handler(self):
         # asyncio.run(self.__handle_command())
         pass
             
-    async def __handle_Service(self):
-        # self.server = await asyncio.start_server( self.__handle_client, *self.__address )   
+    def __handle_Service(self):
         
-        # async with self.server:
-        #     await self.server.serve_forever()
-        pass
-        
-    async def __handle_client(self,reader, writer):
-        # packet = await self.__STP.AsyncReceiveStone(reader)
+        self.__STP.SetupConnection(*self.__address, 0)
+        thread = self.thread.Constructor(self.__STP.ReceiveStone, self.__STP.client)  
+        self.Sessions.add(Session( self.__STP.client , thread ))
+        thread.run()
+
+    def __handle_client(self,reader, writer):
+        # packet = self.__STP.AsyncReceiveStone(reader)
 
         if packet.header.StoneType == struct.pack('I', 0 ):
-            session = Session( writer.get_extra_info('peername'), reader, writer )
+            session = Session( writer.get_extra_info('peername'),  )
             self.regular_sockets[session.SessionID] = self.__STP.regular_socket(writer.get_extra_info('socket'))
             self.packets[session.SessionID] = packet
             self.Sessions.add( session )
         
-    async def __handle_command(self):
+    def __handle_command(self):
         while True:
+            cmd_found = False
             cmd = input("Server: ")
             
             for command, function in self.command_list.items():
                 if cmd == command:
                     print( function() )
+                    cmd_found = True
                 
             if cmd.startswith("set"):
                 print( self.__set_command(cmd) )
                 
             elif self.Session:
-                await self.__client_command(cmd)
+                self.__client_command(cmd)
                 
-            elif await self.__shutdown_command( cmd ):
+            elif self.__shutdown_command( cmd ):
                 break
-            # else:
-            #     print(f"\nCommand {cmd} not found\n")
+            elif not cmd_found:
+                print(f"\nCommand {cmd} not found\n")
             
         exit()
         
         
-    async def __client_command(self, cmd):
+    def __client_command(self, cmd):
         if cmd == "close":
-            await self.__STP.Disconnect(self.Session)
+            self.__STP.Disconnect(self.Session)
             self.Sessions.remove(self.Session)
             print(f"\nDisconnected from session: {self.Session.SessionID}\n")
             self.Session = None
             
         elif cmd == "exit":
-            print("\nSession: {self.Session.SessionID} is Deselect.\n")
+            print(f"\nSession: {self.Session.SessionID} is Deselect.\n")
             self.Session = None
+        
+        elif cmd.startswith("download"):
+            file_path = cmd.split(" ")[1].replace("\\", "/")
+            self.__STP.Download(self.Session, file_path)
+            self.packets[self.Session.SessionID] = self.__STP.ReceiveStone(self.Session.Address)
+            file_name = file_path.split("/")[-1].replace('"', "")
+            
+            with open(file_name, "wb") as f:
+                f.write(self.packets[self.Session.SessionID].payload.file)
+                
+            print(f"File {file_name} has been downloaded.\n")
+            
+            
+        elif cmd.startswith("upload"):
+            file_path = cmd.split(" ")[1]
+            self.__STP.Download(self.Session, cmd.split(" ")[1])
+            self.packets[self.Session.SessionID] = self.__STP.ReceiveStone(self.Session.Address)
+            print(f"\nFile {file_path} uploaded\n")
             
         elif cmd.startswith("/"):
-            sessionid = self.Session.SessionID
-            await self.__STP.SendStone(self.Session, self.struct.Command(cmd.replace("/", "")))
-            self.packets[sessionid] = self.__STP.ReceiveStone(self.regular_sockets[sessionid])
-            print(self.packets[sessionid].payload.decode("cp949"))
+            try:
+                sessionid = self.Session.SessionID
+                self.__STP.SendStone(self.Session, self.struct.Command(cmd.replace("/", "")))
+                self.packets[sessionid] = self.__STP.ReceiveStone(self.Session.Address)
+                result = self.packets[sessionid].payload.response.decode("cp949")
+                print(f"\n{result}\n")
+            except AttributeError as e:
+                self.Sessions.remove(self.Session)
+                self.Session = None
+                print(e, "\n")
+            
         
         
     def __display_sessions(self):
-        display_session = "\n====== [ Index ] ====== [ Address ] ========== [ ID ] ========="
+        display_session = "\n====== [ Index ] ======== [ Address ] ============== [ ID ] ========="
         count = 0
         for Session in self.Sessions:
-            display_session += f"\n|      index : {count}       [ {Session.Address[0]} ]    [ {Session.SessionID} ]  |"
+            display_session += f"\n|      index : {count}      {Session.Address.getsockname()}     [ {Session.SessionID} ]  |"
             count+=1
-        display_session += "\n==========================[ end ]==============================\n"
+        display_session += "\n============================[ end ]==================================\n"
         return display_session
         
         
@@ -143,18 +176,18 @@ class Server:
         return f"\n{session_id} Session has been selected.\n"
 
 
-    async def __shutdown_command(self, cmd):
+    def __shutdown_command(self, cmd):
         if (len(self.Sessions) == 0 and cmd == "shutdown"):
             
             print("\nThe server has shut down.\n")
-            await self.server.wait_closed()
+            self.__STP.socket.closed()
             
             return True
         
         elif cmd == "shutdown":
             
             for session in self.Sessions:
-                await self.__STP.Disconnect(session)
+                self.__STP.Disconnect(session)
             print("\nThe server has shut down.\n")
             
             return True
@@ -167,8 +200,9 @@ class Server:
 class Session:
     SessionID: str = field(init=False, default=None)
     Address: tuple
-    reader: None
-    writer: None
+    Thread: None
+    # reader: None
+    # writer: None
 
     def __post_init__(self):
         self.SessionID = SessionID(8).Token
