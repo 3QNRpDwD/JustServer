@@ -123,10 +123,17 @@ class Server:
             
             
         elif cmd.startswith("upload"):
-            file_path = cmd.split(" ")[1]
-            self.__STP.Download(self.Session, cmd.split(" ")[1])
+            file_path = cmd.split(" ")[1].replace("\\", "/")
+            file_name = file_path.split("/")[-1].replace('"', "").encode()
+            file_data = bytes()
+            
+            with open(file_path, "rb") as f:
+                file_data = f.read()
+                
+            self.__STP.Upload(self.Session, file_name +"<name_end>".encode()+ file_data)
             self.packets[self.Session.SessionID] = self.__STP.ReceiveStone(self.Session.Address)
-            print(f"\nFile {file_path} uploaded\n")
+            
+            print(f"\n{self.packets[self.Session.SessionID].payload.file.decode()}\n")
             
         elif cmd.startswith("/"):
             try:

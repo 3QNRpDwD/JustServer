@@ -1,4 +1,5 @@
 import socket
+import math
 from StructureStone import *
 
 class StoneTransferProtocol:
@@ -45,12 +46,13 @@ class StoneTransferProtocol:
     
     def ReceiveStone( self, socket, buffer_size: int = 12 ) -> StructStone:
         try:
-            Packet = bytearray()
-            for iter in range(int(buffer_size  / 2048)):
-                Packet.append(socket.recv( 2048 ))
-
-            if buffer_size != 12:
+            if buffer_size > 12:
+                Packet = bytearray()
+                for i in range(math.ceil(buffer_size  / 2048)):
+                    Packet+=socket.recv( 2048 )
                 return StructStone( None, Packet ,None)
+            
+            Packet = socket.recv( buffer_size )
             
             Header = StructStoneHeader( Packet[0:4], Packet[4:8], Packet[8:12] )
             Payload = self.ParsingPacket( self.ReceiveStone(socket, struct.unpack('I', Header.StoneSize )[0] ) )
@@ -72,13 +74,12 @@ class StoneTransferProtocol:
     def Download( self, session, path):
         try:
             session.Address.send( ConstructStone().Download(path).stone )
-            ConstructStone().Download(path).stone
         except ConnectionResetError as e:
             print("\n",e)
         
-    def Upload( self, session, file_name):
+    def Upload( self, session, file):
         try:
-            session.Address.send( ConstructStone().Upload().stone )
+            session.Address.send( ConstructStone().Upload(file).stone )
         except ConnectionResetError as e:
             print("\n",e)
 
