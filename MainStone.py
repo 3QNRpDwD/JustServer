@@ -1,6 +1,6 @@
 from StructureStone import *
 from dataclasses import dataclass, field
-from NetStone import StoneTransferProtocol
+from NetStone import StoneTransferProtocol, Protocol
 from MultiStone import *
 import asyncio, secrets, socket
 
@@ -52,12 +52,6 @@ class Server:
         # asyncio.run(self.__handle_Service())
         while True:
             self.__handle_Service()
-        
-        pass
-        
-    def __run_command_handler(self):
-        # asyncio.run(self.__handle_command())
-        pass
             
     def __handle_Service(self):
         
@@ -66,14 +60,6 @@ class Server:
         self.Sessions.add(Session( self.__STP.client , thread ))
         thread.run()
 
-    def __handle_client(self,reader, writer):
-        # packet = self.__STP.AsyncReceiveStone(reader)
-
-        if packet.header.StoneType == struct.pack('I', 0 ):
-            session = Session( writer.get_extra_info('peername'),  )
-            self.regular_sockets[session.SessionID] = self.__STP.regular_socket(writer.get_extra_info('socket'))
-            self.packets[session.SessionID] = packet
-            self.Sessions.add( session )
         
     def __handle_command(self):
         while True:

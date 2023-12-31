@@ -54,13 +54,12 @@ class StoneTransferProtocol:
             
             Packet = socket.recv( buffer_size )
             
-            Header = StructStoneHeader( Packet[0:4], Packet[4:8], Packet[8:12] )
-            Payload = self.ParsingPacket( self.ReceiveStone(socket, struct.unpack('I', Header.StoneSize )[0] ) )
-
-            if Header.StoneSize:
+            if buffer_size == 12:
+                Header = StructStoneHeader( Packet[0:4], Packet[4:8], Packet[8:12] )
+                Payload = self.ParsingPacket( self.ReceiveStone(socket, struct.unpack('I', Header.StoneSize )[0] ) )
                 return StructStone( Header, Payload ,None)
             
-            return StructStone( Header, None ,None)
+            return StructStone( None, Packet ,None)
         except Exception as e:
             print("\n", e)
 
