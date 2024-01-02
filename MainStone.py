@@ -49,7 +49,6 @@ class Server:
         self.__Command_thread.join()
         
     def __run_service_handle(self):
-        # asyncio.run(self.__handle_Service())
         while True:
             self.__handle_Service()
             
@@ -126,6 +125,7 @@ class Server:
                 sessionid = self.Session.SessionID
                 self.__STP.SendStone(self.Session, self.struct.Command(cmd.replace("/", "")))
                 self.packets[sessionid] = self.__STP.ReceiveStone(self.Session.Address)
+                print("\nWaiting for the command to be executed...")
                 result = self.packets[sessionid].payload.response.decode("cp949")
                 print(f"\n{result}\n")
             except AttributeError as e:
