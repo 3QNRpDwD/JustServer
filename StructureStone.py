@@ -124,7 +124,7 @@ class ConstructStone:
                         )
 
 @dataclass
-class Protocol:
+class StoneTransferProtocol:
     Connection :bytes = field(init=False, default=None)
     Handshake  :bytes = field(init=False, default=None)
     HealthCheck:bytes = field(init=False, default=None)

