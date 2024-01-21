@@ -32,7 +32,7 @@ When running the server, you can use command-line arguments:
 Example usage:
 
 ```bash
-python server.py -a <IP_ADDRESS> -p <PORT_NUMBER>
+python MainStone.py -a <IP_ADDRESS> -p <PORT_NUMBER>
 ```
 
 **Note:** Ensure to install the required libraries before running the server.
