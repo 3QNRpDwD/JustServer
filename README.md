@@ -14,8 +14,58 @@ The project is in the process of transitioning into a C&C server, which will ena
 
 A dedicated client is currently under development to complement the transformed C&C server. This client will facilitate seamless interaction and control over the backdoors connected to the C&C server.
 
+## Usage:
+
+To run the server, you need three libraries: `secrets`, `datetime`, and `argparse`. Use the following pip commands to install each library:
+
+```bash
+pip install secrets
+pip install datetime
+pip install argparse
+```
+
+When running the server, you can use command-line arguments:
+
+- `-a`: Please enter the IP address of the PC to be used as the server. The default value is localhost.
+- `-p`: Please enter the port number the server will use. The default value is 6974.
+
+Example usage:
+
+```bash
+python server.py -a <IP_ADDRESS> -p <PORT_NUMBER>
+```
+
+**Note:** Ensure to install the required libraries before running the server.
+
 ## How to Contribute:
 
-If you are interested in contributing to the project, feel free to check the [contributing guidelines](CONTRIBUTING.md). Your contributions and insights are welcomed to enhance the functionality and security of the project.
+Contributions to the project are welcome. If you wish to contribute, please check the [contributing guidelines](CONTRIBUTING.md) for more information. Your insights and enhancements are valuable to the project's development.
 
-**Note:** This project is intended for educational purposes and ethical use only. Unauthorized and malicious activities are strictly prohibited.
+**Disclaimer:** This project is intended for educational purposes only. Usage for unauthorized or malicious activities is strictly prohibited.
+
+# Version Information
+
+**Requirements:**
+This project requires Python version 3.11 or later. Please ensure that you have the correct Python version installed before running the server.
+
+## How to Check Python Version:
+
+You can check your Python version using the following command in the terminal or command prompt:
+
+```bash
+python --version
+```
+
+or
+
+```bash
+python -V
+```
+
+If your current Python version is below 3.11, please update to the latest version available on the official [Python website](https://www.python.org/downloads/).
+
+## Note:
+
+Ensure that the correct Python version is installed to guarantee compatibility and smooth execution of the server. If you encounter any issues related to Python version compatibility, updating to the specified version is recommended.
+
+**Disclaimer:** The project's version requirements are designed to ensure optimal performance and functionality.
